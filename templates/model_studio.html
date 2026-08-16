@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+{% block title %}ML Training & Evaluation Studio — Open Source Project Finder{% endblock %}
+
+{% block content %}
+<section class="studio-container">
+  
+  <!-- Studio Header -->
+  <div class="studio-header">
+    <div class="studio-header-titles">
+      <div class="section-tag">Machine Learning Lab</div>
+      <h1 class="studio-title">Interactive Model Training & Evaluation Studio</h1>
+      <p class="studio-desc">
+        Configure, retrain, and benchmark machine learning algorithms for project difficulty classification and text-based domain categorization. Hot-deploy newly trained models directly into the live search engine with one click.
+      </p>
+    </div>
+
+    <!-- Active Models Summary Badge -->
+    <div class="studio-active-card">
+      <div class="active-card-header">
+        <span class="pulse-dot"></span>
+        <span class="active-title">Live Model Status</span>
+      </div>
+      <div class="active-card-body">
+        <div class="active-row">
+          <span>Difficulty Model:</span>
+          <strong id="active-diff-name">{{ active_diff.algorithm or 'DecisionTreeClassifier' }}</strong>
+        </div>
+        <div class="active-row">
+          <span>Domain NLP:</span>
+          <strong id="active-dom-name">{{ active_dom.algorithm or 'MultinomialNB' }}</strong>
+        </div>
+        <div class="active-row">
+          <span>Status:</span>
+          <strong class="text-emerald" id="active-model-status">Ready & Vectorized</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Studio Main Navigation Tabs -->
+  <div class="studio-tabs" role="tablist">
+    <button type="button" class="studio-tab active" data-tab="tab-difficulty">
+      <span class="tab-icon">&#127919;</span> 1. Difficulty Classifier Trainer
+    </button>
+    <button type="button" class="studio-tab" data-tab="tab-domain">
+      <span class="tab-icon">&#128218;</span> 2. Domain NLP Classifier Trainer
+    </button>
+    <button type="button" class="studio-tab" data-tab="tab-sandbox">
+      <span class="tab-icon">&#9889;</span> 3. Live Single-Inference Sandbox
+    </button>
+    <button type="button" class="studio-tab" data-tab="tab-architecture">
+      <span class="tab-icon">&#128202;</span> 4. Model Architecture & Pipeline
+    </button>
+  </div>
+
+  <!-- TAB 1: DIFFICULTY MODEL TRAINER -->
+  <div class="studio-tab-content active" id="tab-difficulty">
+    <div class="trainer-split-layout">
+      
+      <!-- Configuration Panel -->
+      <div class="trainer-config-card">
+        <div class="config-header">
+          <h3>Algorithm & Hyperparameters</h3>
+          <span class="badge-tag">Difficulty Tiering</span>
+        </div>
+
+        <form id="train-difficulty-form" class="trainer-form">
+          <!-- Algorithm Selection -->
+          <div class="form-group">
+            <label class="form-label" for="diff-algo">Classification Algorithm</label>
+            <select id="diff-algo" class="form-select">
+              <option value="DecisionTreeClassifier" selected>Decision Tree Classifier (Fast & Explainable)</option>
+              <option value="RandomForestClassifier">Random Forest Classifier (Ensemble Bagging)</option>
+              <option value="GradientBoostingClassifier">Gradient Boosting Classifier (Ensemble Boosting)</option>
+              <option value="LogisticRegression">Multinomial Logistic Regression</option>
+              <option value="KNeighborsClassifier">K-Nearest Neighbors (KNN)</option>
+            </select>
+          </div>
+
+          <!-- Hyperparameter: Max Depth -->
+          <div class="form-group" id="group-max-depth">
+            <div class="slider-header">
+              <label class="form-label" for="diff-max-depth">Max Depth</label>
+              <span class="slider-display" id="diff-max-depth-val">5</span>
+            </div>
+            <input type="range" id="diff-max-depth" min="2" max="20" value="5" step="1" class="range-slider">
+            <span class="form-hint">Controls maximum tree depth to balance complexity and overfitting.</span>
+          </div>
+
+          <!-- Hyperparameter: N Estimators (for RF/GB) -->
+          <div class="form-group" id="group-n-estimators" style="display: none;">
+            <div class="slider-header">
+              <label class="form-label" for="diff-n-estimators">Number of Estimators (Trees)</label>
+              <span class="slider-display" id="diff-n-estimators-val">100</span>
+            </div>
+            <input type="range" id="diff-n-estimators" min="10" max="300" value="100" step="10" class="range-slider">
+          </div>
+
+          <!-- Hyperparameter: Test Split Ratio -->
+          <div class="form-group">
+            <div class="slider-header">
+              <label class="form-label" for="diff-test-size">Validation Split Ratio</label>
+              <span class="slider-display" id="diff-test-size-val">20%</span>
+            </div>
+            <input type="range" id="diff-test-size" min="0.1" max="0.4" value="0.2" step="0.05" class="range-slider">
+          </div>
+
+          <!-- Random Seed -->
+          <div class="form-group">
+            <label class="form-label" for="diff-random-state">Random State (Reproducibility)</label>
+            <input type="number" id="diff-random-state" value="42" class="form-input" />
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" id="btn-train-diff">
+            <span class="btn-icon">&#9654;</span> Train Difficulty Model
+          </button>
+        </form>
+      </div>
+
+      <!-- Training Evaluation Dashboard -->
+      <div class="trainer-results-card">
+        <div class="results-header-bar">
+          <h3>Difficulty Evaluation Metrics</h3>
+          <span class="model-run-status" id="diff-run-status">Awaiting Training Run</span>
+        </div>
+
+        <div id="diff-metrics-container">
+          <div class="metrics-empty-state">
+            <div class="empty-icon">&#128202;</div>
+            <p>Click <strong>"Train Difficulty Model"</strong> to execute the training pipeline, split data, and calculate validation metrics.</p>
+          </div>
+        </div>
+
+        <!-- Staged Model Hot-Deploy Box -->
+        <div id="diff-deploy-box" class="deploy-banner" style="display: none;">
+          <div class="deploy-copy">
+            <strong>New Difficulty Model Ready!</strong>
+            <span>Test Accuracy: <span id="diff-deploy-acc">0%</span>. Click deploy to activate in live search engine.</span>
+          </div>
+          <button type="button" class="btn btn-emerald btn-sm" id="btn-deploy-diff">
+            <span>&#10003; Deploy & Activate Model</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TAB 2: DOMAIN NLP MODEL TRAINER -->
+  <div class="studio-tab-content" id="tab-domain">
+    <div class="trainer-split-layout">
+      
+      <!-- Configuration Panel -->
+      <div class="trainer-config-card">
+        <div class="config-header">
+          <h3>NLP Pipeline & Classifier Config</h3>
+          <span class="badge-tag">Domain Classification</span>
+        </div>
+
+        <form id="train-domain-form" class="trainer-form">
+          <!-- Algorithm -->
+          <div class="form-group">
+            <label class="form-label" for="dom-algo">Text Classification Algorithm</label>
+            <select id="dom-algo" class="form-select">
+              <option value="MultinomialNB" selected>Multinomial Naive Bayes (Fast & High NLP Accuracy)</option>
+              <option value="SGDClassifier">Linear SVM (SGD with Log Loss)</option>
+              <option value="LogisticRegression">Logistic Regression (L2 Regularized)</option>
+              <option value="RandomForestClassifier">Random Forest (Bagged Ensembles)</option>
+            </select>
+          </div>
+
+          <!-- TF-IDF Max Features -->
+          <div class="form-group">
+            <div class="slider-header">
+              <label class="form-label" for="dom-max-features">TF-IDF Max Vocabulary Features</label>
+              <span class="slider-display" id="dom-max-features-val">5,000</span>
+            </div>
+            <input type="range" id="dom-max-features" min="1000" max="15000" value="5000" step="1000" class="range-slider">
+          </div>
+
+          <!-- N-Gram Maximum -->
+          <div class="form-group">
+            <label class="form-label" for="dom-ngram">N-Gram Range</label>
+            <select id="dom-ngram" class="form-select">
+              <option value="1">Unigrams Only (1, 1)</option>
+              <option value="2" selected>Unigrams + Bigrams (1, 2)</option>
+              <option value="3">Unigrams + Bigrams + Trigrams (1, 3)</option>
+            </select>
+          </div>
+
+          <!-- Alpha Smoothing (for NB / SGD) -->
+          <div class="form-group">
+            <div class="slider-header">
+              <label class="form-label" for="dom-alpha">Smoothing / Alpha (Regularization)</label>
+              <span class="slider-display" id="dom-alpha-val">0.1</span>
+            </div>
+            <input type="range" id="dom-alpha" min="0.01" max="1.0" value="0.1" step="0.05" class="range-slider">
+          </div>
+
+          <!-- Test Size -->
+          <div class="form-group">
+            <div class="slider-header">
+              <label class="form-label" for="dom-test-size">Validation Split Ratio</label>
+              <span class="slider-display" id="dom-test-size-val">20%</span>
+            </div>
+            <input type="range" id="dom-test-size" min="0.1" max="0.4" value="0.2" step="0.05" class="range-slider">
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" id="btn-train-dom">
+            <span class="btn-icon">&#9654;</span> Train Domain NLP Model
+          </button>
+        </form>
+      </div>
+
+      <!-- Domain Evaluation Dashboard -->
+      <div class="trainer-results-card">
+        <div class="results-header-bar">
+          <h3>Domain NLP Evaluation Metrics</h3>
+          <span class="model-run-status" id="dom-run-status">Awaiting Training Run</span>
+        </div>
+
+        <div id="dom-metrics-container">
+          <div class="metrics-empty-state">
+            <div class="empty-icon">&#128218;</div>
+            <p>Click <strong>"Train Domain NLP Model"</strong> to fit TF-IDF vectors and calculate accuracy, confusion matrices, and keyword probabilities.</p>
+          </div>
+        </div>
+
+        <!-- Staged Model Deploy Box -->
+        <div id="dom-deploy-box" class="deploy-banner" style="display: none;">
+          <div class="deploy-copy">
+            <strong>New Domain NLP Model Ready!</strong>
+            <span>Test Accuracy: <span id="dom-deploy-acc">0%</span>. Click deploy to activate in live search engine.</span>
+          </div>
+          <button type="button" class="btn btn-emerald btn-sm" id="btn-deploy-dom">
+            <span>&#10003; Deploy & Activate Model</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TAB 3: LIVE SINGLE-INFERENCE SANDBOX -->
+  <div class="studio-tab-content" id="tab-sandbox">
+    <div class="sandbox-split-layout">
+      
+      <!-- Input Controls -->
+      <div class="sandbox-input-card">
+        <div class="config-header">
+          <h3>Interactive Inference Sandbox</h3>
+          <span class="badge-tag">Real-Time Prediction</span>
+        </div>
+        <p class="panel-desc">
+          Adjust features or enter custom project details to test live model predictions instantly.
+        </p>
+
+        <form id="sandbox-form" class="sandbox-form">
+          <div class="form-group">
+            <label class="form-label" for="sb-name">Repository Name</label>
+            <input type="text" id="sb-name" class="form-input" value="fastapi-deeplearning-service" placeholder="e.g. pytorch-vision-transformer">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="sb-desc">Repository Description</label>
+            <textarea id="sb-desc" class="form-textarea" rows="3" placeholder="Brief description of the repository...">High-performance async web API for deploying deep learning neural network inference models with PyTorch and CUDA support.</textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="sb-readme">README Snippet / Preview</label>
+            <textarea id="sb-readme" class="form-textarea" rows="3" placeholder="README text preview..."># Fast Neural Service&#10;Installation: pip install torch fastapi uvicorn&#10;Run: uvicorn main:app --reload</textarea>
+          </div>
+
+          <div class="slider-grid-2col">
+            <div class="form-group">
+              <div class="slider-header">
+                <label class="form-label" for="sb-stars">Stars</label>
+                <span class="slider-display" id="sb-stars-val">250</span>
+              </div>
+              <input type="range" id="sb-stars" min="0" max="5000" value="250" step="25" class="range-slider">
+            </div>
+
+            <div class="form-group">
+              <div class="slider-header">
+                <label class="form-label" for="sb-forks">Forks</label>
+                <span class="slider-display" id="sb-forks-val">45</span>
+              </div>
+              <input type="range" id="sb-forks" min="0" max="1000" value="45" step="5" class="range-slider">
+            </div>
+
+            <div class="form-group">
+              <div class="slider-header">
+                <label class="form-label" for="sb-issues">Open Issues</label>
+                <span class="slider-display" id="sb-issues-val">8</span>
+              </div>
+              <input type="range" id="sb-issues" min="0" max="300" value="8" step="1" class="range-slider">
+            </div>
+
+            <div class="form-group">
+              <div class="slider-header">
+                <label class="form-label" for="sb-files">File Count</label>
+                <span class="slider-display" id="sb-files-val">22</span>
+              </div>
+              <input type="range" id="sb-files" min="1" max="100" value="22" step="1" class="range-slider">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" id="btn-sandbox-predict">
+            <span class="btn-icon">&#9889;</span> Run Real-Time Inference
+          </button>
+        </form>
+      </div>
+
+      <!-- Prediction Output Panel -->
+      <div class="sandbox-output-card">
+        <div class="results-header-bar">
+          <h3>Inference Prediction Results</h3>
+          <span class="badge-tag" id="sb-pred-time">Instant</span>
+        </div>
+
+        <div id="sandbox-output-container">
+          
+          <!-- Difficulty Result Box -->
+          <div class="pred-result-block">
+            <div class="pred-header">
+              <span class="pred-label">Predicted Difficulty Tier</span>
+              <span class="pred-main-badge" id="sb-res-diff">Intermediate</span>
+            </div>
+            <div class="pred-confidence-bars" id="sb-diff-probs">
+              <div class="conf-bar-row">
+                <span class="conf-name">Beginner Friendly</span>
+                <div class="conf-bar"><div class="conf-fill bg-emerald" style="width: 15%;"></div></div>
+                <span class="conf-pct">15%</span>
+              </div>
+              <div class="conf-bar-row">
+                <span class="conf-name">Intermediate Builder</span>
+                <div class="conf-bar"><div class="conf-fill bg-amber" style="width: 75%;"></div></div>
+                <span class="conf-pct">75%</span>
+              </div>
+              <div class="conf-bar-row">
+                <span class="conf-name">Advanced Architect</span>
+                <div class="conf-bar"><div class="conf-fill bg-danger" style="width: 10%;"></div></div>
+                <span class="conf-pct">10%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Domain Result Box -->
+          <div class="pred-result-block">
+            <div class="pred-header">
+              <span class="pred-label">Predicted Technical Domain</span>
+              <span class="pred-main-badge domain" id="sb-res-dom">Machine Learning / Data Science</span>
+            </div>
+            <div class="pred-confidence-bars" id="sb-dom-probs">
+              <div class="conf-bar-row">
+                <span class="conf-name">Machine Learning</span>
+                <div class="conf-bar"><div class="conf-fill bg-indigo" style="width: 82%;"></div></div>
+                <span class="conf-pct">82%</span>
+              </div>
+              <div class="conf-bar-row">
+                <span class="conf-name">Web Development</span>
+                <div class="conf-bar"><div class="conf-fill bg-blue" style="width: 14%;"></div></div>
+                <span class="conf-pct">14%</span>
+              </div>
+              <div class="conf-bar-row">
+                <span class="conf-name">General Software</span>
+                <div class="conf-bar"><div class="conf-fill bg-slate" style="width: 4%;"></div></div>
+                <span class="conf-pct">4%</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TAB 4: ARCHITECTURE & PIPELINE -->
+  <div class="studio-tab-content" id="tab-architecture">
+    <div class="content-panel">
+      <div class="panel-header">
+        <h3>End-to-End System Architecture</h3>
+      </div>
+      <p class="panel-desc">
+        How the Information Retrieval vectorizer, Difficulty Classifier, and Domain NLP model interact:
+      </p>
+
+      <div class="arch-flow-grid">
+        <div class="arch-step-card">
+          <div class="arch-step-num">01</div>
+          <h4>Raw Metadata Ingestion</h4>
+          <p>Dataset with 5,839 GitHub repositories. Cleans text, computes string lengths, validates numerical signals.</p>
+        </div>
+        <div class="arch-step-card">
+          <div class="arch-step-num">02</div>
+          <h4>TF-IDF Search Index</h4>
+          <p>Lemmatized word tokenization with stopwords removal. Computes sparse TF-IDF matrix for instant cosine similarity search.</p>
+        </div>
+        <div class="arch-step-card">
+          <div class="arch-step-num">03</div>
+          <h4>Difficulty Classifier</h4>
+          <p>Scales 7 numeric & length features via StandardScaler. Predicts Beginner (0), Intermediate (1), or Advanced (2).</p>
+        </div>
+        <div class="arch-step-card">
+          <div class="arch-step-num">04</div>
+          <h4>NLP Domain Model</h4>
+          <p>Tokenizes repo name, description, and readme preview. Assigns technical domain categories (Web, ML, Cyber, Games, General).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/model_studio.js') }}"></script>
+{% endblock %}

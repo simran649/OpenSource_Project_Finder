@@ -1,48 +1,241 @@
 {% extends "base.html" %}
-{% block title %}{% if repo %}{{ repo.name }} — {% endif %}Open Source Project Finder{% endblock %}
+{% block title %}{% if repo %}{{ repo.name }} — Repository Dossier{% else %}Repository Not Found{% endif %}{% endblock %}
 
 {% block content %}
 {% if repo %}
-<section class="detail-card">
-  <div class="detail-card-header">
-    <p class="eyebrow">Full record</p>
-    <h1>{{ repo.name }}</h1>
-    <p class="owner">by {{ repo.owner }}</p>
-    <span class="difficulty-stamp difficulty-{{ repo.difficulty|lower }}">{{ repo.difficulty }}</span>
+<div class="details-page-wrapper">
+  
+  <!-- Back Link Breadcrumb -->
+  <div class="breadcrumb-bar">
+    <a href="javascript:history.back()" class="breadcrumb-link">&larr; Back to Results</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">{{ repo.owner }} / {{ repo.name }}</span>
   </div>
 
-  <p class="detail-description">{{ repo.description }}</p>
+  <!-- Hero Dossier Header Card -->
+  <section class="repo-dossier-hero">
+    <div class="dossier-top">
+      <div class="dossier-identity">
+        <div class="repo-avatar">{{ repo.name[:2]|upper }}</div>
+        <div class="repo-titles">
+          <div class="repo-owner-line">by <a href="https://github.com/{{ repo.owner }}" target="_blank" rel="noopener" class="owner-link">{{ repo.owner }}</a></div>
+          <h1 class="repo-heading">{{ repo.name }}</h1>
+        </div>
+      </div>
 
-  <div class="detail-stats">
-    <div class="stat"><span class="stat-value">{{ "{:,}".format(repo.stars) }}</span><span class="stat-label">Stars</span></div>
-    <div class="stat"><span class="stat-value">{{ "{:,}".format(repo.forks) }}</span><span class="stat-label">Forks</span></div>
-    <div class="stat"><span class="stat-value">{{ "{:,}".format(repo.contributors) }}</span><span class="stat-label">Contributors</span></div>
-    <div class="stat"><span class="stat-value">{{ repo.open_issues }}</span><span class="stat-label">Open issues</span></div>
-    <div class="stat"><span class="stat-value">{{ repo.language }}</span><span class="stat-label">Language</span></div>
+      <div class="dossier-actions">
+        <button type="button" class="btn btn-secondary btn-compare-toggle" data-repo-id="{{ repo.id }}" data-repo-name="{{ repo.name }}">
+          <span class="btn-icon">&#9878;</span> Add to Compare
+        </button>
+        {% if repo.github_url %}
+        <a href="{{ repo.github_url }}" class="btn btn-primary" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          <span>View on GitHub</span>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Badges Row -->
+    <div class="dossier-badges-row">
+      <span class="difficulty-badge difficulty-{{ repo.difficulty|lower }}">
+        {% if repo.difficulty == 'Beginner' %}🟢 Beginner Friendly
+        {% elif repo.difficulty == 'Intermediate' %}🟡 Intermediate Builder
+        {% else %}🔴 Advanced Architect{% endif %}
+      </span>
+      {% if repo.domain and repo.domain != 'Unknown' %}
+      <span class="domain-badge">🏢 {{ repo.domain }}</span>
+      {% endif %}
+      <span class="lang-badge">🛠️ {{ repo.language }}</span>
+      <span class="health-badge">💚 {{ repo.community_health }}% Health</span>
+    </div>
+
+    <p class="repo-full-description">{{ repo.description }}</p>
+
+    <!-- Key Metrics Grid -->
+    <div class="repo-metrics-grid">
+      <div class="metric-box">
+        <span class="metric-icon">⭐</span>
+        <span class="metric-val">{{ "{:,}".format(repo.stars) }}</span>
+        <span class="metric-lbl">Stars</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-icon">🍴</span>
+        <span class="metric-val">{{ "{:,}".format(repo.forks) }}</span>
+        <span class="metric-lbl">Forks</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-icon">👥</span>
+        <span class="metric-val">{{ "{:,}".format(repo.contributors) }}</span>
+        <span class="metric-lbl">Contributors</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-icon">🐛</span>
+        <span class="metric-val">{{ "{:,}".format(repo.open_issues) }}</span>
+        <span class="metric-lbl">Open Issues</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-icon">📁</span>
+        <span class="metric-val">{{ "{:,}".format(repo.file_count) }}</span>
+        <span class="metric-lbl">Files Count</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-icon">👁️</span>
+        <span class="metric-val">{{ "{:,}".format(repo.watchers) }}</span>
+        <span class="metric-lbl">Watchers</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Two Column Layout: ML Explainability + Readme & Similar Repos -->
+  <div class="details-grid-layout">
+    
+    <!-- Left Column: ML Classification Explanation -->
+    <div class="details-left-col">
+      
+      <!-- Contribution Readiness Score Card -->
+      <div class="content-panel readiness-card">
+        <div class="panel-header">
+          <h3>Contribution Readiness Index</h3>
+          <span class="score-badge">{{ repo.readiness_score }}/100</span>
+        </div>
+        <p class="panel-desc">Calculated based on repository documentation completeness, community health, and maintainer activity.</p>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" style="width: {{ repo.readiness_score }}%;"></div>
+        </div>
+        <ul class="readiness-checklist">
+          <li class="checked">Community Health Score: <strong>{{ repo.community_health }}%</strong></li>
+          <li class="{% if repo.readme_summary and repo.readme_summary != 'No README preview available.' %}checked{% else %}unchecked{% endif %}">
+            {% if repo.readme_summary and repo.readme_summary != 'No README preview available.' %}README Documentation Available{% else %}No README preview{% endif %}
+          </li>
+          <li class="checked">Stars to Issues Activity ratio balanced</li>
+        </ul>
+      </div>
+
+      <!-- Machine Learning Explainability Card -->
+      <div class="content-panel ml-explain-card">
+        <div class="panel-header">
+          <h3>🤖 ML Decision Tree Classifier Insights</h3>
+        </div>
+        <p class="panel-desc">
+          Our trained Decision Tree evaluated 7 structural signals to assign the <strong>{{ repo.difficulty }}</strong> tier:
+        </p>
+
+        <div class="feature-table-wrap">
+          <table class="feature-table">
+            <thead>
+              <tr>
+                <th>Feature Signal</th>
+                <th>Repository Value</th>
+                <th>Influence</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Repository Stars</td>
+                <td><code>{{ repo.stars }}</code></td>
+                <td><span class="tag-influence high">High</span></td>
+              </tr>
+              <tr>
+                <td>Repository Forks</td>
+                <td><code>{{ repo.forks }}</code></td>
+                <td><span class="tag-influence high">High</span></td>
+              </tr>
+              <tr>
+                <td>Project File Count</td>
+                <td><code>{{ repo.file_count }}</code></td>
+                <td><span class="tag-influence med">Medium</span></td>
+              </tr>
+              <tr>
+                <td>Contributors Count</td>
+                <td><code>{{ repo.contributors }}</code></td>
+                <td><span class="tag-influence med">Medium</span></td>
+              </tr>
+              <tr>
+                <td>Open Issues</td>
+                <td><code>{{ repo.open_issues }}</code></td>
+                <td><span class="tag-influence low">Low</span></td>
+              </tr>
+              <tr>
+                <td>README Length</td>
+                <td><code>{{ repo.readme_summary|length }} chars</code></td>
+                <td><span class="tag-influence med">Medium</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel-footer-actions">
+          <a href="{{ url_for('model_studio') }}" class="btn btn-outline btn-sm">
+            <span>Inspect in ML Studio Sandbox &rarr;</span>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Readme Summary & Similar Repos -->
+    <div class="details-right-col">
+      
+      <!-- README Summary Panel -->
+      <div class="content-panel readme-panel">
+        <div class="panel-header">
+          <h3>📄 README Preview & Summary</h3>
+        </div>
+        <div class="readme-content-box">
+          <pre><code>{{ repo.readme_summary }}</code></pre>
+        </div>
+      </div>
+
+      <!-- Topics / Tags -->
+      {% if repo.topics %}
+      <div class="content-panel topics-panel">
+        <div class="panel-header">
+          <h3>🏷️ Topics & Tags</h3>
+        </div>
+        <div class="topic-pills-list">
+          {% for topic in repo.topics %}
+          <a href="{{ url_for('results_page', q=topic) }}" class="topic-tag-link">{{ topic }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Similar Repositories -->
+      {% if similar_repos %}
+      <div class="content-panel similar-panel">
+        <div class="panel-header">
+          <h3>🔗 Semantically Similar Repositories</h3>
+          <span class="panel-hint">Discovered by TF-IDF Cosine Similarity</span>
+        </div>
+        <div class="similar-repos-grid">
+          {% for sim in similar_repos %}
+          <a href="{{ url_for('repo_details', repo_id=sim.id) }}" class="similar-repo-card">
+            <div class="sim-top">
+              <span class="sim-name">{{ sim.name }}</span>
+              <span class="sim-match">{{ sim.match_percentage }}% Sim</span>
+            </div>
+            <p class="sim-desc">{{ sim.description[:90] }}...</p>
+            <div class="sim-meta">
+              <span>⭐ {{ sim.stars }}</span>
+              <span>🛠️ {{ sim.language }}</span>
+              <span class="sim-diff">{{ sim.difficulty }}</span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
   </div>
 
-  <div class="detail-topics">
-    {% for topic in repo.topics %}
-    <span class="topic-pill">{{ topic }}</span>
-    {% endfor %}
-  </div>
-
-  <div class="readme-summary">
-    <h2>README summary</h2>
-    <p>{{ repo.readme_summary }}</p>
-  </div>
-
-  {% if repo.github_url %}
-  <a href="{{ repo.github_url }}" class="back-link" target="_blank" rel="noopener">View on GitHub &rarr;</a>
-  <br>
-  {% endif %}
-  <a href="{{ url_for('home') }}" class="back-link">&larr; Back to the drawer</a>
-</section>
+</div>
 {% else %}
-<section class="drawer-front">
-  <h1>Card not found</h1>
-  <p class="lede">That repository isn't in the index.</p>
-  <a href="{{ url_for('home') }}" class="back-link">&larr; Back to search</a>
-</section>
+<div class="drawer-front empty-state-box">
+  <h2>Repository Record Not Found</h2>
+  <p class="lede">The requested repository ID does not exist in our vectorized database index.</p>
+  <a href="{{ url_for('home') }}" class="btn btn-primary">&larr; Back to Search</a>
+</div>
 {% endif %}
 {% endblock %}

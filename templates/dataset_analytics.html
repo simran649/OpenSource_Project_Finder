@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Dataset Explorer & Analytics — Open Source Project Finder{% endblock %}
+
+{% block content %}
+<div class="analytics-page-wrapper">
+  
+  <div class="section-header">
+    <div class="section-tag">Repository Intelligence & Data Distribution</div>
+    <h1 class="section-title">Dataset Analytics & Exploratory Overview</h1>
+    <p class="section-desc">
+      Comprehensive distribution metrics for <strong>{{ "{:,}".format(stats.total_repositories) }}</strong> indexed repositories used for IR search and Machine Learning model training.
+    </p>
+  </div>
+
+  <!-- Key Statistics Banner -->
+  <div class="stats-ribbon analytics-ribbon">
+    <div class="stat-card">
+      <div class="stat-num">{{ "{:,}".format(stats.total_repositories) }}</div>
+      <div class="stat-name">Total Repositories</div>
+      <div class="stat-sub">Cleaned Rows in CSV</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">{{ stats.averages.stars }}</div>
+      <div class="stat-name">Average Stars</div>
+      <div class="stat-sub">Per Repository</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">{{ stats.averages.forks }}</div>
+      <div class="stat-name">Average Forks</div>
+      <div class="stat-sub">Per Repository</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">{{ stats.averages.community_health }}%</div>
+      <div class="stat-name">Avg Community Health</div>
+      <div class="stat-sub">Health Metric</div>
+    </div>
+  </div>
+
+  <!-- Distributions Grid -->
+  <div class="analytics-charts-grid">
+    
+    <!-- Chart Card: Difficulty Distribution -->
+    <div class="content-panel chart-card">
+      <div class="panel-header">
+        <h3>Difficulty Tier Distribution</h3>
+      </div>
+      <div class="chart-bars-list">
+        {% set total_diff = stats.difficulty_distribution.Beginner + stats.difficulty_distribution.Intermediate + stats.difficulty_distribution.Advanced %}
+        <div class="chart-bar-item">
+          <div class="bar-info">
+            <span class="bar-name">🟢 Beginner Friendly</span>
+            <span class="bar-val">{{ stats.difficulty_distribution.Beginner }} ({{ "%.1f"|format(stats.difficulty_distribution.Beginner / total_diff * 100) }}%)</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill bg-emerald" style="width: {{ stats.difficulty_distribution.Beginner / total_diff * 100 }}%;"></div></div>
+        </div>
+
+        <div class="chart-bar-item">
+          <div class="bar-info">
+            <span class="bar-name">🟡 Intermediate Builder</span>
+            <span class="bar-val">{{ stats.difficulty_distribution.Intermediate }} ({{ "%.1f"|format(stats.difficulty_distribution.Intermediate / total_diff * 100) }}%)</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill bg-amber" style="width: {{ stats.difficulty_distribution.Intermediate / total_diff * 100 }}%;"></div></div>
+        </div>
+
+        <div class="chart-bar-item">
+          <div class="bar-info">
+            <span class="bar-name">🔴 Advanced Architect</span>
+            <span class="bar-val">{{ stats.difficulty_distribution.Advanced }} ({{ "%.1f"|format(stats.difficulty_distribution.Advanced / total_diff * 100) }}%)</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill bg-danger" style="width: {{ stats.difficulty_distribution.Advanced / total_diff * 100 }}%;"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart Card: Top Programming Languages -->
+    <div class="content-panel chart-card">
+      <div class="panel-header">
+        <h3>Top Programming Languages</h3>
+      </div>
+      <div class="chart-bars-list">
+        {% for lang, count in stats.languages.items() %}
+        <div class="chart-bar-item">
+          <div class="bar-info">
+            <span class="bar-name">🛠️ {{ lang }}</span>
+            <span class="bar-val">{{ count }}</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill bg-indigo" style="width: {{ count / stats.total_repositories * 300 }}%;"></div></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Chart Card: Technical Domain Breakdown -->
+    <div class="content-panel chart-card full-width">
+      <div class="panel-header">
+        <h3>Technical Domain Breakdown</h3>
+      </div>
+      <div class="chart-bars-list domain-bars-grid">
+        {% for dom, count in stats.domain_distribution.items() %}
+        <div class="chart-bar-item">
+          <div class="bar-info">
+            <span class="bar-name">🏢 {{ dom }}</span>
+            <span class="bar-val">{{ count }} ({{ "%.1f"|format(count / stats.total_repositories * 100) }}%)</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill bg-blue" style="width: {{ count / stats.total_repositories * 100 }}%;"></div></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Interactive Dataset Sample Table -->
+  <div class="content-panel dataset-table-panel">
+    <div class="table-panel-header">
+      <div class="table-titles">
+        <h3>Interactive Repository Browser</h3>
+        <p class="panel-desc">Search and inspect live records in the training dataset.</p>
+      </div>
+
+      <div class="table-search-box">
+        <input type="text" id="dataset-search-input" class="form-input form-input-sm" placeholder="Filter by name, language, keyword...">
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="data-table" id="dataset-sample-table">
+        <thead>
+          <tr>
+            <th>Repository</th>
+            <th>Owner</th>
+            <th>Language</th>
+            <th>Difficulty (ML)</th>
+            <th>Domain (NLP)</th>
+            <th>Stars</th>
+            <th>Forks</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="dataset-table-body">
+          <tr><td colspan="8" class="text-center">Loading dataset rows...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="table-pagination">
+      <span class="pagination-info" id="pagination-info">Showing page 1</span>
+      <div class="pagination-buttons">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-prev-page" disabled>&larr; Previous</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-next-page">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dataset_analytics.js') }}"></script>
+{% endblock %}

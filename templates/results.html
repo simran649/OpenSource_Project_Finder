@@ -1,25 +1,187 @@
 {% extends "base.html" %}
-{% block title %}Results — Open Source Project Finder{% endblock %}
+{% block title %}Search Results for "{{ query }}" — Open Source Project Finder{% endblock %}
 
 {% block content %}
-<section class="drawer-front results-header">
-  <p class="eyebrow">Vol. 03 &mdash; Search Results</p>
-  <h1 id="results-title">Results for &ldquo;<span id="query-text">{{ query }}</span>&rdquo;</h1>
+<section class="results-page-layout">
+  
+  <!-- Header Bar -->
+  <div class="results-top-header">
+    <div class="results-title-group">
+      <p class="results-breadcrumb"><a href="{{ url_for('home') }}">&larr; Back to Search</a> / Search Results</p>
+      <h1 class="results-main-title">
+        Repositories matching &ldquo;<span id="query-display-text">{{ query }}</span>&rdquo;
+      </h1>
+      <p class="results-subtitle">
+        Ranked via TF-IDF Cosine Similarity & enriched with Machine Learning difficulty classification.
+      </p>
+    </div>
 
-  <form id="search-form-results" class="search-slot search-slot--compact" autocomplete="off">
-    <input type="text" id="q" name="q" value="{{ query }}" placeholder="Search again...">
-    <button type="submit">Pull card</button>
-  </form>
-</section>
+    <!-- Search Again Compact Bar -->
+    <form id="search-form-results" class="results-search-bar" autocomplete="off">
+      <div class="search-input-wrap">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="q-results" name="q" value="{{ query }}" placeholder="Search another keyword..." />
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">Search</button>
+    </form>
+  </div>
 
-<section class="results-stack" id="results-stack">
-  <p class="loading-msg">Pulling cards from the drawer&hellip;</p>
+  <!-- Content Split Layout: Sidebar Filters + Cards Stack -->
+  <div class="results-split-container">
+    
+    <!-- Sidebar Filters -->
+    <aside class="filters-sidebar">
+      <div class="filters-header">
+        <h3><span class="filter-icon">&#9776;</span> Filters & Refinements</h3>
+        <button type="button" class="btn-text" id="clear-all-filters">Clear All</button>
+      </div>
+
+      <!-- Filter: Difficulty -->
+      <div class="filter-group">
+        <label class="filter-group-title">Difficulty Tier</label>
+        <div class="filter-options">
+          <label class="filter-checkbox-label">
+            <input type="radio" name="filter-difficulty" value="" checked>
+            <span>All Levels</span>
+          </label>
+          <label class="filter-checkbox-label">
+            <input type="radio" name="filter-difficulty" value="beginner">
+            <span>🟢 Beginner Friendly</span>
+          </label>
+          <label class="filter-checkbox-label">
+            <input type="radio" name="filter-difficulty" value="intermediate">
+            <span>🟡 Intermediate</span>
+          </label>
+          <label class="filter-checkbox-label">
+            <input type="radio" name="filter-difficulty" value="advanced">
+            <span>🔴 Advanced</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Filter: Domain -->
+      <div class="filter-group">
+        <label class="filter-group-title">Technical Domain</label>
+        <div class="filter-options">
+          <label class="filter-checkbox-label">
+            <input type="radio" name="filter-domain" value="" checked>
+            <span>All Domains</span>
+          </label>
+          <label class="filter-checkbox-label">
+            <input type="radio" name="filter-domain" value="machine learning">
+            <span>🤖 Machine Learning</span>
+          </label>
+          <label class="filter-checkbox-label">
+            <input type="radio" name="filter-domain" value="web development">
+            <span>🌐 Web Development</span>
+          </label>
+          <label class="filter-checkbox-label">
+            <input type="radio" name="filter-domain" value="cybersecurity">
+            <span>🔒 Cybersecurity</span>
+          </label>
+          <label class="filter-checkbox-label">
+            <input type="radio" name="filter-domain" value="mobile apps">
+            <span>🎮 Apps & Game Dev</span>
+          </label>
+          <label class="filter-checkbox-label">
+            <input type="radio" name="filter-domain" value="general">
+            <span>📦 General Software</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Filter: Language -->
+      <div class="filter-group">
+        <label class="filter-group-title">Primary Language</label>
+        <select id="filter-language-select" class="form-select">
+          <option value="">Any Language</option>
+          <option value="python">Python</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="c++">C++</option>
+          <option value="c">C</option>
+          <option value="java">Java</option>
+          <option value="go">Go</option>
+          <option value="rust">Rust</option>
+          <option value="html">HTML</option>
+          <option value="jupyter notebook">Jupyter Notebook</option>
+        </select>
+      </div>
+
+      <!-- Filter: Min Stars Slider -->
+      <div class="filter-group">
+        <div class="slider-title-row">
+          <label class="filter-group-title" for="min-stars-slider">Minimum Stars</label>
+          <span class="slider-value" id="min-stars-val">0</span>
+        </div>
+        <input type="range" id="min-stars-slider" min="0" max="500" step="10" value="0" class="range-slider" />
+      </div>
+
+      <!-- Filter: Has Readme -->
+      <div class="filter-group">
+        <label class="toggle-switch-label">
+          <input type="checkbox" id="filter-has-readme">
+          <span class="toggle-switch"></span>
+          <span class="toggle-text">Must have README preview</span>
+        </label>
+      </div>
+    </aside>
+
+    <!-- Main Results Feed -->
+    <main class="results-feed">
+      
+      <!-- Controls Toolbar (Sort, View Mode, Count) -->
+      <div class="results-toolbar">
+        <div class="results-count-text">
+          Showing <strong id="results-count-number">0</strong> repositories
+        </div>
+
+        <div class="toolbar-controls">
+          <div class="sort-select-wrap">
+            <label for="sort-by-select">Sort by:</label>
+            <select id="sort-by-select" class="form-select form-select-sm">
+              <option value="relevance">Best Match (IR Score)</option>
+              <option value="stars">Most Stars</option>
+              <option value="forks">Most Forks</option>
+              <option value="health">Community Health</option>
+              <option value="readiness">Contribution Readiness</option>
+            </select>
+          </div>
+
+          <div class="view-mode-toggle" role="group" aria-label="View layout">
+            <button type="button" class="btn-icon-toggle active" id="view-grid-btn" title="Grid View">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            </button>
+            <button type="button" class="btn-icon-toggle" id="view-list-btn" title="List View">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Filters Pill Bar -->
+      <div class="active-filter-pills" id="active-filter-pills"></div>
+
+      <!-- Container where cards are rendered -->
+      <div id="results-stack" class="repo-cards-grid">
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Analyzing indices and matching repositories with ML models&hellip;</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script>
   window.__INITIAL_QUERY__ = {{ query|tojson }};
+  window.__INITIAL_LANG__ = {{ language|tojson }};
+  window.__INITIAL_DIFF__ = {{ difficulty|tojson }};
+  window.__INITIAL_DOM__ = {{ domain|tojson }};
+  window.__INITIAL_SORT__ = {{ sort_by|tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/results.js') }}"></script>
 {% endblock %}

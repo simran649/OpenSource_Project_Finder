@@ -1,109 +1,52 @@
-from flask import Flask, request, jsonify, render_template
-import joblib
+from flask import Flask, request, jsonify, render_template, redirect, url_for
+import os
 import pandas as pd
+from ml_engine import MLEngine
 import ir_module
 
 app = Flask(__name__)
 
-# ==========================================
-# 1. LOAD DATA, IR ENGINE & ML MODELS
-#    (this part is basically Member 4's original code, untouched)
-# ==========================================
-try:
-    # NOTE: the original code had quoting=3 (QUOTE_NONE) here, which broke
-    # column alignment on any row where description/file_list/readme_preview
-    # contained a comma (very common). Removed so real quoted CSV fields
-    # parse correctly.
-    df = pd.read_csv('dataset.csv', engine='python', on_bad_lines='skip')
-    df.fillna('', inplace=True)
-    # give every row a stable row-number id so the frontend can link
-    # to /repo/<id> for a details page
-    df = df.reset_index(drop=True)
-    df['repo_id'] = df.index
-    print(f"✅ Dataset loaded! Found {len(df)} repositories.")
+# =========================================================================
+# 1. INITIALIZE ML ENGINE & IR ENGINE
+# =========================================================================
+ml_engine = MLEngine(data_path="dataset.csv")
 
-    ir_vectorizer, ir_matrix = ir_module.initialize_ir(df)
-except Exception as e:
-    df = None
+if ml_engine.df is not None:
+    ir_vectorizer, ir_matrix = ir_module.initialize_ir(ml_engine.df)
+else:
     ir_vectorizer, ir_matrix = None, None
-    print(f"⚠️ THE REAL ERROR IS: {e}")
 
-try:
-    scaler = joblib.load('scaler.pkl')
-    difficulty_model = joblib.load('difficulty_model.pkl')
-    domain_vectorizer = joblib.load('domain_vectorizer.pkl')
-    domain_model = joblib.load('domain_model.pkl')
-    models_loaded = True
-    print("✅ ML Models loaded successfully!")
-except Exception as e:
-    models_loaded = False
-    print("⚠️ Error loading ML Models (.pkl files missing).")
-
-
-def to_float(val):
-    try:
-        return float(val)
-    except Exception:
-        return 0.0
-
-
-DIFFICULTY_FEATURES = [
-    "stars", "forks", "open_issues_count", "contributors_count_page1",
-    "file_count", "description_len", "readme_len",
-]
-DIFFICULTY_LABELS = {0: "Beginner", 1: "Intermediate", 2: "Advanced"}
-
-
-def enrich_with_ml(repo):
+def calculate_readiness_score(repo):
     """
-    Adds 'Difficulty Level' and 'Technical Domain' to a repo dict, in place.
-
-    IMPORTANT: the difficulty_model.pkl was trained (see ML.ipynb) on exactly
-    these 7 numeric features, in this order:
-        stars, forks, open_issues_count, contributors_count_page1,
-        file_count, description_len, readme_len
-    and predicts an integer 0/1/2 (Beginner/Intermediate/Advanced) —
-    NOT a string. The domain_model.pkl was trained on the combined text
-    "repo_name + description + readme_preview", not description alone.
+    Computes a composite 'Contribution Readiness' score (0-100%)
+    based on community health, readme availability, issues/stars ratio, and activity.
     """
-    if not models_loaded:
-        repo["Difficulty Level"] = "Model Not Loaded"
-        repo["Technical Domain"] = "Model Not Loaded"
-        return repo
-    try:
-        desc = str(repo.get("description", ""))
-        readme = str(repo.get("readme_preview", ""))
+    score = 40.0
+    
+    # Community health contribution (up to 30 pts)
+    health = float(repo.get('community_health_percentage', 0) or 0)
+    score += (health / 100.0) * 30.0
+    
+    # Has readme preview (15 pts)
+    readme = str(repo.get('readme_preview', ''))
+    if len(readme) > 200:
+        score += 15.0
+    elif len(readme) > 0:
+        score += 8.0
+        
+    # Open issues & stars balance (15 pts)
+    stars = float(repo.get('stars', 0) or 0)
+    issues = float(repo.get('open_issues_count', 0) or 0)
+    if stars > 10:
+        score += 10.0
+    if issues > 0 and issues < 500:
+        score += 5.0
 
-        feature_row = {
-            "stars": to_float(repo.get("stars", 0)),
-            "forks": to_float(repo.get("forks", 0)),
-            "open_issues_count": to_float(repo.get("open_issues_count", 0)),
-            "contributors_count_page1": to_float(repo.get("contributors_count_page1", 0)),
-            "file_count": to_float(repo.get("file_count", 0)),
-            "description_len": len(desc),
-            "readme_len": len(readme),
-        }
-        feature_df = pd.DataFrame([feature_row], columns=DIFFICULTY_FEATURES)
-        scaled_stats = scaler.transform(feature_df)
-        diff_code = int(difficulty_model.predict(scaled_stats)[0])
-        repo["Difficulty Level"] = DIFFICULTY_LABELS.get(diff_code, "Unknown")
-
-        domain_text = f"{repo.get('repo_name', '')} {desc} {readme}"
-        text_vec = domain_vectorizer.transform([domain_text])
-        repo["Technical Domain"] = domain_model.predict(text_vec)[0]
-    except Exception as e:
-        print(f"⚠️ ML Error on a repo: {e}")
-        repo["Difficulty Level"] = "Unknown"
-        repo["Technical Domain"] = "Unknown"
-    return repo
-
+    return min(98, max(25, int(score)))
 
 def normalize_repo(repo):
     """
-    Converts a raw dataset row (dict) into the shape the frontend
-    (main.js / results.js / templates) expects to render a card.
-    This is the ONLY translation layer between your real data's
-    column names and the UI — change this if column names change.
+    Converts a dataset row into the standardized shape expected by the frontend.
     """
     difficulty = str(repo.get("Difficulty Level", "Unknown"))
     domain = str(repo.get("Technical Domain", ""))
@@ -115,111 +58,353 @@ def normalize_repo(repo):
     if lang:
         topics.append(str(lang))
 
+    stars = int(float(repo.get("stars", 0) or 0))
+    forks = int(float(repo.get("forks", 0) or 0))
+    contributors = int(float(repo.get("contributors_count_page1", 1) or 1))
+    open_issues = int(float(repo.get("open_issues_count", 0) or 0))
+    watchers = int(float(repo.get("watchers", 0) or 0))
+    file_count = int(float(repo.get("file_count", 0) or 0))
+    health = int(float(repo.get("community_health_percentage", 65) or 65))
+    readiness = calculate_readiness_score(repo)
+
     return {
-        "id": repo.get("repo_id", 0),
-        "name": repo.get("repo_name") or repo.get("name") or "Unknown",
-        "owner": repo.get("owner", ""),
-        "description": repo.get("description", "") or "No description available.",
+        "id": int(repo.get("repo_id", 0)),
+        "name": str(repo.get("repo_name") or repo.get("name") or "Unknown"),
+        "owner": str(repo.get("owner", "")),
+        "description": str(repo.get("description", "") or "No description available."),
         "topics": topics,
-        "language": repo.get("language", "Unknown") or "Unknown",
-        "stars": int(to_float(repo.get("stars", 0))),
-        "forks": int(to_float(repo.get("forks", 0))),
-        "contributors": int(to_float(repo.get("contributors_count_page1", 0))),
-        "open_issues": int(to_float(repo.get("open_issues_count", 0))),
+        "language": str(repo.get("language", "Unknown") or "Unknown"),
+        "stars": stars,
+        "forks": forks,
+        "contributors": contributors,
+        "open_issues": open_issues,
+        "watchers": watchers,
+        "file_count": file_count,
+        "community_health": health,
+        "readiness_score": readiness,
         "difficulty": difficulty,
-        "readme_summary": repo.get("readme_preview", "") or "No README preview available.",
-        "github_url": repo.get("github_url", ""),
+        "difficulty_confidence": repo.get("difficulty_confidence"),
+        "domain": domain,
+        "match_percentage": repo.get("match_percentage", None),
+        "similarity_score": repo.get("similarity_score", None),
+        "readme_summary": str(repo.get("readme_preview", "") or "No README preview available."),
+        "github_url": str(repo.get("github_url", "")),
     }
 
-
-# ==========================================
-# 2. PAGE ROUTES (render actual HTML pages)
-# ==========================================
+# =========================================================================
+# 2. PAGE ROUTES
+# =========================================================================
 @app.route('/')
 def home():
     languages = []
-    if df is not None:
-        languages = sorted({str(l) for l in df['language'].unique() if str(l).strip()})
-    return render_template('index.html', languages=languages)
-
+    total_count = 0
+    domains = [
+        "Web Development",
+        "Machine Learning / Data Science",
+        "Cybersecurity",
+        "Mobile Apps / Game Dev",
+        "General Software Engineering"
+    ]
+    if ml_engine.df is not None:
+        languages = sorted({str(l).strip() for l in ml_engine.df['language'].unique() if str(l).strip() and str(l) != 'nan'})
+        total_count = len(ml_engine.df)
+    return render_template(
+        'index.html',
+        languages=languages,
+        domains=domains,
+        total_count=total_count,
+        models_loaded=ml_engine.models_loaded
+    )
 
 @app.route('/results')
 def results_page():
     query = request.args.get('q', '')
-    return render_template('results.html', query=query)
-
+    language = request.args.get('language', '')
+    difficulty = request.args.get('difficulty', '')
+    domain = request.args.get('domain', '')
+    sort_by = request.args.get('sort', 'relevance')
+    return render_template(
+        'results.html',
+        query=query,
+        language=language,
+        difficulty=difficulty,
+        domain=domain,
+        sort_by=sort_by
+    )
 
 @app.route('/repo/<int:repo_id>')
 def repo_details(repo_id):
     repo = None
-    if df is not None:
-        match = df[df['repo_id'] == repo_id]
-        if not match.empty:
-            raw = match.iloc[0].to_dict()
-            enrich_with_ml(raw)
-            repo = normalize_repo(raw)
-    return render_template('details.html', repo=repo)
+    similar_repos = []
+    if ml_engine.df is not None and repo_id in ml_engine.df.index:
+        raw = ml_engine.df.iloc[repo_id].to_dict()
+        ml_engine.enrich_repo(raw)
+        repo = normalize_repo(raw)
+        
+        # Get similar repos
+        if ir_matrix is not None:
+            raw_similar = ir_module.find_similar_repos(repo_id, ml_engine.df, ir_matrix, top_k=4)
+            for s in raw_similar:
+                ml_engine.enrich_repo(s)
+                similar_repos.append(normalize_repo(s))
 
+    return render_template('details.html', repo=repo, similar_repos=similar_repos)
 
-# ==========================================
-# 3. API ROUTES (JSON, used by main.js / results.js)
-# ==========================================
+@app.route('/model-studio')
+def model_studio():
+    return render_template(
+        'model_studio.html',
+        models_loaded=ml_engine.models_loaded,
+        active_diff=ml_engine.active_difficulty_meta,
+        active_dom=ml_engine.active_domain_meta
+    )
+
+@app.route('/dataset')
+def dataset_explorer():
+    stats = ml_engine.get_dataset_stats()
+    return render_template('dataset_analytics.html', stats=stats)
+
+@app.route('/compare')
+def compare_page():
+    ids_str = request.args.get('ids', '')
+    repos = []
+    if ids_str and ml_engine.df is not None:
+        try:
+            ids = [int(i.strip()) for i in ids_str.split(',') if i.strip().isdigit()]
+            for rid in ids[:5]:
+                if rid in ml_engine.df.index:
+                    raw = ml_engine.df.iloc[rid].to_dict()
+                    ml_engine.enrich_repo(raw)
+                    repos.append(normalize_repo(raw))
+        except Exception:
+            pass
+    return render_template('compare.html', repos=repos, ids_str=ids_str)
+
+# =========================================================================
+# 3. API ROUTES (SEARCH, FILTERING, DISCOVERY)
+# =========================================================================
 @app.route('/api/search', methods=['GET'])
 def api_search():
-    query = request.args.get('q', '')
+    query = request.args.get('q', '').strip()
+    language = request.args.get('language', '').strip().lower()
+    difficulty = request.args.get('difficulty', '').strip().lower()
+    domain = request.args.get('domain', '').strip().lower()
+    sort_by = request.args.get('sort', 'relevance').strip()
+    min_stars = int(request.args.get('min_stars', 0) or 0)
+    has_readme = request.args.get('has_readme', '').strip().lower()
 
-    if not query:
-        return jsonify([])
+    if ml_engine.df is None:
+        return jsonify({"error": "Dataset not loaded."}), 500
 
-    if df is None or ir_vectorizer is None:
-        return jsonify({"error": "System not fully initialized."}), 500
+    raw_candidates = []
 
-    raw_results = ir_module.smart_search(query, df, ir_vectorizer, ir_matrix)
+    if query and ir_vectorizer is not None and ir_matrix is not None:
+        raw_candidates = ir_module.smart_search(query, ml_engine.df, ir_vectorizer, ir_matrix, top_k=60)
+    else:
+        # Fallback to top repositories
+        sample_df = ml_engine.df.head(60)
+        for _, row in sample_df.iterrows():
+            r = row.to_dict()
+            r['match_percentage'] = 100
+            raw_candidates.append(r)
 
     normalized = []
-    for repo in raw_results:
-        enrich_with_ml(repo)
-        normalized.append(normalize_repo(repo))
+    for raw in raw_candidates:
+        ml_engine.enrich_repo(raw)
+        repo = normalize_repo(raw)
+
+        # Apply Filters
+        if language and repo['language'].lower() != language:
+            continue
+        if difficulty and repo['difficulty'].lower() != difficulty:
+            continue
+        if domain and domain not in repo['domain'].lower():
+            continue
+        if repo['stars'] < min_stars:
+            continue
+        if has_readme == 'true' and (not repo['readme_summary'] or repo['readme_summary'] == 'No README preview available.'):
+            continue
+
+        normalized.append(repo)
+
+    # Sorting
+    if sort_by == 'stars':
+        normalized.sort(key=lambda x: x['stars'], reverse=True)
+    elif sort_by == 'forks':
+        normalized.sort(key=lambda x: x['forks'], reverse=True)
+    elif sort_by == 'health':
+        normalized.sort(key=lambda x: x['community_health'], reverse=True)
+    elif sort_by == 'readiness':
+        normalized.sort(key=lambda x: x['readiness_score'], reverse=True)
 
     return jsonify(normalized)
 
-
 @app.route('/api/repo/<int:repo_id>')
 def api_repo_details(repo_id):
-    if df is None:
-        return jsonify({"error": "System not fully initialized."}), 500
-    match = df[df['repo_id'] == repo_id]
-    if match.empty:
+    if ml_engine.df is None:
+        return jsonify({"error": "Dataset not loaded."}), 500
+    if repo_id not in ml_engine.df.index:
         return jsonify({"error": "Repository not found"}), 404
-    raw = match.iloc[0].to_dict()
-    enrich_with_ml(raw)
+    raw = ml_engine.df.iloc[repo_id].to_dict()
+    ml_engine.enrich_repo(raw)
     return jsonify(normalize_repo(raw))
 
+@app.route('/api/repo/similar/<int:repo_id>')
+def api_repo_similar(repo_id):
+    if ml_engine.df is None or ir_matrix is None:
+        return jsonify([])
+    raw_similar = ir_module.find_similar_repos(repo_id, ml_engine.df, ir_matrix, top_k=6)
+    results = []
+    for s in raw_similar:
+        ml_engine.enrich_repo(s)
+        results.append(normalize_repo(s))
+    return jsonify(results)
 
 @app.route('/api/skill-match', methods=['POST'])
 def api_skill_match():
-    if df is None:
+    if ml_engine.df is None:
         return jsonify([])
 
     payload = request.get_json(force=True) or {}
-    languages = [l.lower() for l in payload.get('languages', [])]
-    level = payload.get('level', '').lower()
+    languages = [l.lower().strip() for l in payload.get('languages', []) if l.strip()]
+    level = payload.get('level', '').strip().lower()
+    domain = payload.get('domain', '').strip().lower()
 
-    matches = df
+    matches = ml_engine.df.copy()
     if languages:
-        matches = matches[matches['language'].str.lower().isin(languages)]
+        matches = matches[matches['language'].astype(str).str.lower().isin(languages)]
 
     results = []
-    # cap at 30 rows so we're not running the ML model on the whole dataset
-    for _, row in matches.head(30).iterrows():
+    # Sample up to 60 candidates and filter by enriched ML attributes
+    for _, row in matches.head(60).iterrows():
         raw = row.to_dict()
-        enrich_with_ml(raw)
+        ml_engine.enrich_repo(raw)
+        
         if level and str(raw.get("Difficulty Level", "")).lower() != level:
             continue
-        results.append(normalize_repo(raw))
+        if domain and domain not in str(raw.get("Technical Domain", "")).lower():
+            continue
+            
+        repo = normalize_repo(raw)
+        results.append(repo)
 
     return jsonify(results)
 
+# =========================================================================
+# 4. API ROUTES (MACHINE LEARNING STUDIO & TRAINING)
+# =========================================================================
+@app.route('/api/train/difficulty', methods=['POST'])
+def api_train_difficulty():
+    try:
+        data = request.get_json(force=True) or {}
+        algorithm = data.get('algorithm', 'DecisionTreeClassifier')
+        test_size = float(data.get('test_size', 0.2))
+        random_state = int(data.get('random_state', 42))
+        params = data.get('params', {})
+
+        result = ml_engine.train_difficulty_model(
+            algorithm=algorithm,
+            params=params,
+            test_size=test_size,
+            random_state=random_state
+        )
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+@app.route('/api/train/domain', methods=['POST'])
+def api_train_domain():
+    try:
+        data = request.get_json(force=True) or {}
+        algorithm = data.get('algorithm', 'MultinomialNB')
+        max_features = int(data.get('max_features', 5000))
+        test_size = float(data.get('test_size', 0.2))
+        random_state = int(data.get('random_state', 42))
+        params = data.get('params', {})
+
+        result = ml_engine.train_domain_model(
+            algorithm=algorithm,
+            params=params,
+            max_features=max_features,
+            test_size=test_size,
+            random_state=random_state
+        )
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+@app.route('/api/train/activate', methods=['POST'])
+def api_train_activate():
+    try:
+        data = request.get_json(force=True) or {}
+        act_diff = data.get('difficulty', True)
+        act_dom = data.get('domain', True)
+
+        res = ml_engine.activate_staged_models(
+            activate_difficulty=act_diff,
+            activate_domain=act_dom
+        )
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+@app.route('/api/model/status', methods=['GET'])
+def api_model_status():
+    return jsonify({
+        "models_loaded": ml_engine.models_loaded,
+        "difficulty_model": ml_engine.active_difficulty_meta,
+        "domain_model": ml_engine.active_domain_meta,
+        "staged_difficulty": ml_engine.staged_difficulty["meta"] if ml_engine.staged_difficulty else None,
+        "staged_domain": ml_engine.staged_domain["meta"] if ml_engine.staged_domain else None
+    })
+
+@app.route('/api/model/predict', methods=['POST'])
+def api_model_predict():
+    payload = request.get_json(force=True) or {}
+    pred = ml_engine.predict_single(payload)
+    return jsonify(pred)
+
+@app.route('/api/dataset/stats', methods=['GET'])
+def api_dataset_stats():
+    stats = ml_engine.get_dataset_stats()
+    return jsonify(stats)
+
+@app.route('/api/dataset/sample', methods=['GET'])
+def api_dataset_sample():
+    if ml_engine.df is None:
+        return jsonify({"total": 0, "rows": []})
+    
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 20))
+    search = request.args.get('q', '').strip().lower()
+
+    filtered = ml_engine.df
+    if search:
+        mask = (
+            filtered['repo_name'].astype(str).str.lower().str.contains(search) |
+            filtered['description'].astype(str).str.lower().str.contains(search) |
+            filtered['language'].astype(str).str.lower().str.contains(search)
+        )
+        filtered = filtered[mask]
+
+    total = len(filtered)
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    slice_df = filtered.iloc[start_idx:end_idx]
+
+    rows = []
+    for _, row in slice_df.iterrows():
+        raw = row.to_dict()
+        ml_engine.enrich_repo(raw)
+        rows.append(normalize_repo(raw))
+
+    return jsonify({
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": (total + per_page - 1) // per_page,
+        "rows": rows
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

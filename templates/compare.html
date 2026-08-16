@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Compare Repositories — Open Source Project Finder{% endblock %}
+
+{% block content %}
+<div class="compare-page-wrapper">
+  
+  <div class="section-header">
+    <div class="section-tag">Side-by-Side Analysis</div>
+    <h1 class="section-title">Repository Comparison Matrix</h1>
+    <p class="section-desc">
+      Compare structure, ML difficulty classifications, community health, and activity metrics across selected projects.
+    </p>
+  </div>
+
+  <div id="compare-matrix-container">
+    {% if repos and repos|length > 0 %}
+    <div class="compare-table-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th class="feature-col">Metric / Feature</th>
+            {% for repo in repos %}
+            <th class="repo-col">
+              <div class="repo-col-header">
+                <div class="col-title">{{ repo.name }}</div>
+                <div class="col-owner">by {{ repo.owner }}</div>
+                <button type="button" class="btn-remove-compare" data-id="{{ repo.id }}" title="Remove from comparison">&times; Remove</button>
+              </div>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Difficulty -->
+          <tr>
+            <td class="feature-col"><strong>Difficulty Tier (ML)</strong></td>
+            {% for repo in repos %}
+            <td>
+              <span class="difficulty-badge difficulty-{{ repo.difficulty|lower }}">
+                {{ repo.difficulty }}
+              </span>
+            </td>
+            {% endfor %}
+          </tr>
+
+          <!-- Domain -->
+          <tr>
+            <td class="feature-col"><strong>Technical Domain (NLP)</strong></td>
+            {% for repo in repos %}
+            <td><span class="domain-badge">{{ repo.domain or 'General' }}</span></td>
+            {% endfor %}
+          </tr>
+
+          <!-- Language -->
+          <tr>
+            <td class="feature-col"><strong>Primary Language</strong></td>
+            {% for repo in repos %}
+            <td><code>{{ repo.language }}</code></td>
+            {% endfor %}
+          </tr>
+
+          <!-- Contribution Readiness -->
+          <tr>
+            <td class="feature-col"><strong>Contribution Readiness</strong></td>
+            {% for repo in repos %}
+            <td>
+              <div class="readiness-cell">
+                <strong>{{ repo.readiness_score }}/100</strong>
+                <div class="mini-bar"><div class="mini-fill" style="width: {{ repo.readiness_score }}%;"></div></div>
+              </div>
+            </td>
+            {% endfor %}
+          </tr>
+
+          <!-- Stars -->
+          <tr>
+            <td class="feature-col">Stars</td>
+            {% for repo in repos %}
+            <td>⭐ <strong>{{ "{:,}".format(repo.stars) }}</strong></td>
+            {% endfor %}
+          </tr>
+
+          <!-- Forks -->
+          <tr>
+            <td class="feature-col">Forks</td>
+            {% for repo in repos %}
+            <td>🍴 <strong>{{ "{:,}".format(repo.forks) }}</strong></td>
+            {% endfor %}
+          </tr>
+
+          <!-- Contributors -->
+          <tr>
+            <td class="feature-col">Contributors</td>
+            {% for repo in repos %}
+            <td>👥 {{ "{:,}".format(repo.contributors) }}</td>
+            {% endfor %}
+          </tr>
+
+          <!-- Open Issues -->
+          <tr>
+            <td class="feature-col">Open Issues</td>
+            {% for repo in repos %}
+            <td>🐛 {{ repo.open_issues }}</td>
+            {% endfor %}
+          </tr>
+
+          <!-- File Count -->
+          <tr>
+            <td class="feature-col">Files Count</td>
+            {% for repo in repos %}
+            <td>📁 {{ repo.file_count }}</td>
+            {% endfor %}
+          </tr>
+
+          <!-- Community Health -->
+          <tr>
+            <td class="feature-col">Community Health</td>
+            {% for repo in repos %}
+            <td>💚 {{ repo.community_health }}%</td>
+            {% endfor %}
+          </tr>
+
+          <!-- Actions -->
+          <tr>
+            <td class="feature-col">Actions</td>
+            {% for repo in repos %}
+            <td>
+              <div class="compare-actions">
+                <a href="{{ url_for('repo_details', repo_id=repo.id) }}" class="btn btn-sm btn-secondary">Full Dossier</a>
+                {% if repo.github_url %}
+                <a href="{{ repo.github_url }}" class="btn btn-sm btn-primary" target="_blank" rel="noopener">GitHub &rarr;</a>
+                {% endif %}
+              </div>
+            </td>
+            {% endfor %}
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state-box content-panel">
+      <div class="empty-icon">&#9878;</div>
+      <h3>No Repositories Selected for Comparison</h3>
+      <p class="lede">Browse search results or home recommendations and click "Add to Compare" on cards to view them side-by-side.</p>
+      <a href="{{ url_for('home') }}" class="btn btn-primary">Find Repositories &rarr;</a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/compare.js') }}"></script>
+{% endblock %}
