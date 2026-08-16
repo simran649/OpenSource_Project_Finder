@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Open Source Project Finder{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <header class="site-header">
+    <a href="{{ url_for('home') }}" class="brand">
+      <span class="brand-mark">&#128193;</span>
+      <span class="brand-text">Open Source<br>Project Finder</span>
+    </a>
+    <nav class="drawer-tabs">
+      <a href="{{ url_for('home') }}" class="tab {% if request.path == '/' %}active{% endif %}">Search</a>
+      <a href="{{ url_for('home') }}#skill-form" class="tab">Match by skill</a>
+    </nav>
+  </header>
+
+  <main class="catalog-room">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <span>Card catalog for the open source stacks &mdash; browse, don't scroll forever.</span>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

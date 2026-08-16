@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Results — Open Source Project Finder{% endblock %}
+
+{% block content %}
+<section class="drawer-front results-header">
+  <p class="eyebrow">Vol. 03 &mdash; Search Results</p>
+  <h1 id="results-title">Results for &ldquo;<span id="query-text">{{ query }}</span>&rdquo;</h1>
+
+  <form id="search-form-results" class="search-slot search-slot--compact" autocomplete="off">
+    <input type="text" id="q" name="q" value="{{ query }}" placeholder="Search again...">
+    <button type="submit">Pull card</button>
+  </form>
+</section>
+
+<section class="results-stack" id="results-stack">
+  <p class="loading-msg">Pulling cards from the drawer&hellip;</p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.__INITIAL_QUERY__ = {{ query|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/results.js') }}"></script>
+{% endblock %}

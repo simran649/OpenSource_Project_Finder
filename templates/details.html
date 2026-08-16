@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{% if repo %}{{ repo.name }} — {% endif %}Open Source Project Finder{% endblock %}
+
+{% block content %}
+{% if repo %}
+<section class="detail-card">
+  <div class="detail-card-header">
+    <p class="eyebrow">Full record</p>
+    <h1>{{ repo.name }}</h1>
+    <p class="owner">by {{ repo.owner }}</p>
+    <span class="difficulty-stamp difficulty-{{ repo.difficulty|lower }}">{{ repo.difficulty }}</span>
+  </div>
+
+  <p class="detail-description">{{ repo.description }}</p>
+
+  <div class="detail-stats">
+    <div class="stat"><span class="stat-value">{{ "{:,}".format(repo.stars) }}</span><span class="stat-label">Stars</span></div>
+    <div class="stat"><span class="stat-value">{{ "{:,}".format(repo.forks) }}</span><span class="stat-label">Forks</span></div>
+    <div class="stat"><span class="stat-value">{{ "{:,}".format(repo.contributors) }}</span><span class="stat-label">Contributors</span></div>
+    <div class="stat"><span class="stat-value">{{ repo.open_issues }}</span><span class="stat-label">Open issues</span></div>
+    <div class="stat"><span class="stat-value">{{ repo.language }}</span><span class="stat-label">Language</span></div>
+  </div>
+
+  <div class="detail-topics">
+    {% for topic in repo.topics %}
+    <span class="topic-pill">{{ topic }}</span>
+    {% endfor %}
+  </div>
+
+  <div class="readme-summary">
+    <h2>README summary</h2>
+    <p>{{ repo.readme_summary }}</p>
+  </div>
+
+  {% if repo.github_url %}
+  <a href="{{ repo.github_url }}" class="back-link" target="_blank" rel="noopener">View on GitHub &rarr;</a>
+  <br>
+  {% endif %}
+  <a href="{{ url_for('home') }}" class="back-link">&larr; Back to the drawer</a>
+</section>
+{% else %}
+<section class="drawer-front">
+  <h1>Card not found</h1>
+  <p class="lede">That repository isn't in the index.</p>
+  <a href="{{ url_for('home') }}" class="back-link">&larr; Back to search</a>
+</section>
+{% endif %}
+{% endblock %}

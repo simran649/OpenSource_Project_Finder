@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Search — Open Source Project Finder{% endblock %}
+
+{% block content %}
+<section class="drawer-front">
+  <p class="eyebrow">Vol. 01 &mdash; Repository Index</p>
+  <h1>Find an open source<br>project worth your time.</h1>
+  <p class="lede">Search by name, topic, or language. Every card below is pulled straight from the index &mdash; stars, forks, contributors, and all.</p>
+
+  <form id="search-form" class="search-slot" autocomplete="off">
+    <label for="q" class="visually-hidden">Search repositories</label>
+    <input type="text" id="q" name="q" placeholder="e.g. python, machine-learning, flask..." />
+    <button type="submit">Pull card</button>
+  </form>
+
+  <div class="quick-tags">
+    <span>Try:</span>
+    <button type="button" class="tag-chip" data-query="python">python</button>
+    <button type="button" class="tag-chip" data-query="beginner-friendly">beginner-friendly</button>
+    <button type="button" class="tag-chip" data-query="machine-learning">machine-learning</button>
+    <button type="button" class="tag-chip" data-query="javascript">javascript</button>
+  </div>
+</section>
+
+<section id="skill-form" class="drawer-front skill-drawer">
+  <p class="eyebrow">Vol. 02 &mdash; Match by Skill</p>
+  <h2>Tell us what you know.<br>We'll pull matching cards.</h2>
+
+  <form id="skill-match-form" class="skill-form-grid">
+    <fieldset>
+      <legend>Languages you work in</legend>
+      <div class="checkbox-row">
+        {% for lang in languages %}
+        <label class="chip-checkbox">
+          <input type="checkbox" name="language" value="{{ lang }}">
+          <span>{{ lang }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Comfort level</legend>
+      <div class="radio-row">
+        <label class="chip-radio"><input type="radio" name="level" value="Beginner" checked><span>Beginner</span></label>
+        <label class="chip-radio"><input type="radio" name="level" value="Intermediate"><span>Intermediate</span></label>
+        <label class="chip-radio"><input type="radio" name="level" value="Advanced"><span>Advanced</span></label>
+      </div>
+    </fieldset>
+
+    <button type="submit" class="stamp-button">Match me</button>
+  </form>
+
+  <div id="skill-results" class="results-stack"></div>
+</section>
+{% endblock %}
