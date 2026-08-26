@@ -151,22 +151,32 @@ The preprocessing stage included:
 
 ### Dataset Transformation
 
-Original Dataset
+### Dataset Transformation
+
+<div align="center">
+
+**Original Dataset**  
 14,644 repositories × 25 columns
-              │
-              ▼
-        Data Inspection
-              │
-              ▼
-       Data Preprocessing
-              │
-              ▼
-      Relevant Columns
-              │
-              ▼
-Cleaned Dataset
+
+↓
+
+**Data Inspection**
+
+↓
+
+**Data Preprocessing**
+
+↓
+
+**Relevant Columns**
+
+↓
+
+**Cleaned Dataset**  
+
 14,644 repositories × 22 columns
 
+</div>
 ---
 
 ## 📊 Dataset Inspection
@@ -191,18 +201,19 @@ The preprocess.py script performs the main preprocessing operations and generate
 
 ## Project Structure
 
+## Project Structure
+
+```text
 OpenSource_Project_Finder/
 │
 ├── app.py
 │
 ├── ir_module.py
 ├── search_engine.py
-│
 ├── ml_engine.py
 │
 ├── preprocess.py
 ├── check_data.py
-│
 ├── dataset.csv
 │
 ├── difficulty_model.pkl
@@ -210,7 +221,7 @@ OpenSource_Project_Finder/
 ├── domain_vectorizer.pkl
 ├── scaler.pkl
 │
-├── static/
+├── static
 │   └── ...
 │
 ├── templates/
