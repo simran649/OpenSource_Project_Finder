@@ -31,34 +31,45 @@ The project combines:
 
 ---
 
-## 🏗️ System Workflow
+## ⚙️ System Workflow
 
-```text
-                    User
-                      │
-                      ▼
-                Search Query
-                      │
-                      ▼
-             Text Preprocessing
-                      │
-                      ▼
-             TF-IDF Vectorization
-                      │
-                      ▼
-             Cosine Similarity
-                      │
-                      ▼
-            Relevant Repositories
-                      │
-                      ▼
-              Machine Learning
-                      │
-                      ▼
-                Final Results
-                      │
-                      ▼
-                Web Interface
+The overall system follows this workflow:
+
+**User**
+
+↓
+
+**Search Query**
+
+↓
+
+**Text Preprocessing**
+
+↓
+
+**TF-IDF Vectorization**
+
+↓
+
+**Cosine Similarity**
+
+↓
+
+**Relevant Repositories**
+
+↓
+
+**Machine Learning**
+
+↓
+
+**Final Results**
+
+↓
+
+**Web Interface**
+
+        
 
 
 ## 🔍 Information Retrieval
