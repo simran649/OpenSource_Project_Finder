@@ -151,8 +151,6 @@ The preprocessing stage included:
 
 ### Dataset Transformation
 
-<div align="center">
-
 **Original Dataset**  
 14,644 repositories × 25 columns
 
@@ -173,8 +171,6 @@ The preprocessing stage included:
 **Cleaned Dataset**  
 
 14,644 repositories × 22 columns
-
-</div>
 
 ---
 
