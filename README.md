@@ -1,111 +1,209 @@
-# OPEN SOURCE PROJECT FINDER
+# 🔎 Open Source Project Finder
 
-**An Information Retrieval and Machine Learning Project**
-
-Open Source Project Finder is a system designed to help users discover relevant open-source GitHub repositories based on their interests and search queries.
-
-The project uses **Information Retrieval techniques and Machine Learning** to search, rank, and analyse GitHub repositories.
+> An intelligent platform for discovering relevant open-source GitHub repositories based on user interests, skills, and search queries.
 
 ---
 
-## Project Workflow
+## 📌 About the Project
 
-User Search Query  
-↓  
-Text Preprocessing  
-↓  
-TF-IDF and Cosine Similarity  
-↓  
-Repository Ranking  
-↓  
-Difficulty Prediction  
-↓  
-Relevant Open Source Projects
+**Open Source Project Finder** is a project designed to help users discover open-source GitHub repositories that match their interests and skill level.
+
+Instead of manually browsing through thousands of repositories, the system uses **Information Retrieval and Machine Learning techniques** to identify relevant projects and provide useful information about them.
+
+The project combines:
+
+- 🔍 Information Retrieval
+- 🤖 Machine Learning
+- 🌐 Flask Backend
+- 🎨 Web Frontend
+- 📊 GitHub Repository Metadata
 
 ---
 
-## Dataset
+## ✨ Key Features
+
+- 🔎 Search for repositories using natural-language queries
+- 📚 Rank repositories according to search relevance
+- 🧹 Preprocess and clean repository data
+- 🤖 Predict repository-related attributes using Machine Learning
+- 🌐 Display results through a web interface
+- 🔗 Provide direct GitHub repository links
+
+---
+
+## 🏗️ System Workflow
+
+```text
+                    User
+                      │
+                      ▼
+                Search Query
+                      │
+                      ▼
+             Text Preprocessing
+                      │
+                      ▼
+             TF-IDF Vectorization
+                      │
+                      ▼
+             Cosine Similarity
+                      │
+                      ▼
+            Relevant Repositories
+                      │
+                      ▼
+              Machine Learning
+                      │
+                      ▼
+                Final Results
+                      │
+                      ▼
+                Web Interface
+
+
+## 🔍 Information Retrieval
+
+The Information Retrieval module allows users to search for repositories using text-based queries.
+
+Repository information such as:
+
+- Repository name
+- Description
+- README preview
+- Programming language
+- File information
+
+is combined to create searchable repository text.
+
+The text is processed using:
+
+1. Tokenization
+2. Stop-word removal
+3. Lemmatization
+4. TF-IDF vectorization
+5. Cosine similarity
+
+The repositories are then ranked according to their similarity to the user's search query.
+
+## 🤖 Machine Learning
+
+The Machine Learning module analyses repository characteristics and generates predictions that can help users understand the repositories they discover.
+
+Repository metadata and engineered features are used for model training and prediction.
+
+The trained models are stored as `.pkl` files and can be loaded by the application during execution.
+
+---
+
+## 📊 Dataset
 
 The project uses a GitHub repository metadata dataset obtained from Kaggle.
 
 ### Original Dataset
 
-- Repositories: 14,644
-- Features: 25
+- **Repositories:** 14,644
+- **Attributes:** 25
 
-The dataset contains repository metadata such as repository name, description, programming language, stars, forks, contributors, README content, issues, and repository activity information.
+The dataset contains information such as:
 
----
-
-## Dataset Preparation
-
-The dataset was analysed and cleaned before being used by the Information Retrieval and Machine Learning modules.
-
-The following preprocessing steps were performed:
-
-- Analysed dataset structure and data types.
-- Checked missing values.
-- Checked duplicate rows.
-- Handled missing values in important text columns.
-- Removed leading and trailing whitespace from text fields.
-- Selected relevant repository features.
-- Checked duplicate repositories using GitHub URLs.
-- Generated a cleaned dataset for further processing.
-
-### Final Dataset
-
-- Repositories: 14,644
-- Features: 22
-- Duplicate repository URLs: 0
-- Missing values in selected important text columns: 0
-
-The cleaned dataset is generated as:
-
-`data/cleaned_github_repositories.csv`
+- Repository name
+- Owner
+- Description
+- Stars
+- Forks
+- Watchers
+- Contributors
+- Programming language
+- Open issues
+- README information
+- Repository files
+- Repository activity
 
 ---
 
-## Dataset Fields
+## 🧹 Dataset Preparation
 
-| Field | Description |
-| --- | --- |
-| repo_name | Name of the GitHub repository |
-| owner | Repository owner |
-| github_url | GitHub repository URL |
-| description | Repository description |
-| stars | Number of stars |
-| forks | Number of forks |
-| watchers | Number of watchers |
-| open_issues_count | Number of open issues |
-| open_pulls_count_page1 | Number of open pull requests collected |
-| contributors_count_page1 | Number of contributors collected |
-| release_count_page1 | Number of releases collected |
-| created_at | Repository creation date |
-| updated_at | Repository last update date |
-| pushed_at | Date of the latest code push |
-| has_readme | Indicates whether a README exists |
-| community_health_percentage | Repository community health score |
-| workflow_count | Number of GitHub Actions workflows |
-| language | Primary programming language |
-| languages_breakdown | Programming languages used |
-| file_count | Number of repository files collected |
-| file_list | Repository file information |
-| readme_preview | Preview of README content |
+The dataset was inspected and processed before being used by the other modules.
+
+The preprocessing stage included:
+
+- Dataset structure and data-type analysis
+- Missing-value analysis
+- Duplicate checking
+- Handling missing values in important text fields
+- Text cleaning
+- Selection of relevant columns
+- Duplicate repository checking using GitHub URLs
+- Generation of a cleaned dataset
 
 ---
 
-## Current Project Structure
+### Dataset Transformation
 
-```text
-OpenSourceProjectFinder/
+Original Dataset
+14,644 repositories × 25 columns
+              │
+              ▼
+        Data Inspection
+              │
+              ▼
+       Data Preprocessing
+              │
+              ▼
+      Relevant Columns
+              │
+              ▼
+Cleaned Dataset
+14,644 repositories × 22 columns
+
+---
+
+## 📊 Dataset Inspection
+
+The check_data.py script was used to inspect the original dataset.
+
+It checks:
+
+- Dataset shape
+- Column names
+- Data types
+- Sample records
+- Missing values
+- Duplicate rows
+
+---
+
+## 🧹 Dataset Preprocessing
+The preprocess.py script performs the main preprocessing operations and generates the cleaned dataset used by the project.
+
+---
+
+## Project Structure
+
+OpenSource_Project_Finder/
 │
-├── data/
-│   ├── archive/
-│   │   └── GitHub_repo_metadata.csv
-│   │
-│   └── cleaned_github_repositories.csv
+├── app.py
 │
-├── check_data.py
+├── ir_module.py
+├── search_engine.py
+│
+├── ml_engine.py
+│
 ├── preprocess.py
+├── check_data.py
+│
+├── dataset.csv
+│
+├── difficulty_model.pkl
+├── domain_model.pkl
+├── domain_vectorizer.pkl
+├── scaler.pkl
+│
+├── static/
+│   └── ...
+│
+├── templates/
+│   └── ...
+│
 ├── README.md
 └── .gitignore
