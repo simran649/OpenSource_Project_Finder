@@ -151,8 +151,6 @@ The preprocessing stage included:
 
 ### Dataset Transformation
 
-### Dataset Transformation
-
 <div align="center">
 
 **Original Dataset**  
@@ -177,6 +175,7 @@ The preprocessing stage included:
 14,644 repositories × 22 columns
 
 </div>
+
 ---
 
 ## 📊 Dataset Inspection
@@ -198,8 +197,6 @@ It checks:
 The preprocess.py script performs the main preprocessing operations and generates the cleaned dataset used by the project.
 
 ---
-
-## Project Structure
 
 ## Project Structure
 
